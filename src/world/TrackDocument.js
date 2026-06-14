@@ -85,8 +85,10 @@ export function loadTrackDocumentFromStorage() {
 export function saveTrackDocumentToStorage(document) {
   try {
     localStorage.setItem(TRACK_STORAGE_KEY, JSON.stringify(sanitizeTrackDocument(document)));
+    return true;
   } catch {
     // Local storage can be unavailable in privacy-restricted browser contexts.
+    return false;
   }
 }
 

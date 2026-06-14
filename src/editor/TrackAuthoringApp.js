@@ -58,8 +58,9 @@ export class TrackAuthoringApp {
     this.ui.on('snapPoint', () => this.viewport.snapPoint(this.selectedIndex));
     this.ui.on('smoothPoint', () => this.viewport.smoothPoint(this.selectedIndex));
     this.ui.on('save', () => {
-      saveTrackDocumentToStorage(this.document);
-      this.ui.showToast('Track saved');
+      const saved = saveTrackDocumentToStorage(this.document);
+      this.ui.showToast(saved ? 'Saved in this browser' : 'Save failed');
+      this.ui.showSaveResult(saved, saved ? `Saved ${currentTimeLabel()}` : 'Save failed');
     });
     this.ui.on('exportJSON', () => this.exportJSON());
     this.ui.on('copySwift', () => this.copySwift());
@@ -76,7 +77,8 @@ export class TrackAuthoringApp {
     });
     this.viewport.on('change', (document) => {
       this.document = sanitizeTrackDocument(document);
-      saveTrackDocumentToStorage(this.document);
+      const saved = saveTrackDocumentToStorage(this.document);
+      this.ui.showSaveResult(saved, saved ? `Auto-saved ${currentTimeLabel()}` : 'Auto-save failed');
       this.syncUI();
     });
     this.viewport.on('metrics', (metrics) => {
@@ -119,10 +121,11 @@ export class TrackAuthoringApp {
 
   commitDocument() {
     this.document = sanitizeTrackDocument(this.document);
-    saveTrackDocumentToStorage(this.document);
+    const saved = saveTrackDocumentToStorage(this.document);
     this.viewport.setDocument(this.document);
     this.viewport.setSelected(this.selectedIndex);
     this.syncUI();
+    this.ui.showSaveResult(saved, saved ? `Auto-saved ${currentTimeLabel()}` : 'Auto-save failed');
   }
 
   syncUI() {
@@ -168,4 +171,11 @@ function downloadText(filename, text, type) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function currentTimeLabel() {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
 }

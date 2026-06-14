@@ -77,12 +77,18 @@ export class TrackEditorUI {
 
     const actions = document.createElement('div');
     actions.className = 'editor-actions';
+    this.saveButton = this.makeButton('Save', () => this.emit('save'));
+    this.saveStatus = document.createElement('output');
+    this.saveStatus.className = 'editor-save-status';
+    this.saveStatus.textContent = 'Saved here';
+
     actions.append(
-      this.makeButton('Save', () => this.emit('save')),
+      this.saveButton,
       this.makeButton('Export JSON', () => this.emit('exportJSON')),
       this.makeButton('Copy Swift', () => this.emit('copySwift')),
       this.makeButton('Ride App', () => this.emit('openRide')),
       this.makeButton('Fresh', () => this.emit('freshReload')),
+      this.saveStatus,
     );
 
     this.importInput = document.createElement('input');
@@ -272,5 +278,23 @@ export class TrackEditorUI {
     this.toastTimer = setTimeout(() => {
       this.toast.classList.remove('is-visible');
     }, 1800);
+  }
+
+  showSaveResult(saved, message) {
+    clearTimeout(this.saveTimer);
+    this.saveStatus.textContent = message;
+    this.saveStatus.classList.toggle('is-error', !saved);
+    this.saveStatus.classList.add('is-active');
+
+    const originalLabel = this.saveButton.textContent;
+    this.saveButton.textContent = saved ? 'Saved' : 'Retry';
+    this.saveButton.classList.toggle('is-confirmed', saved);
+    this.saveButton.classList.toggle('is-error', !saved);
+
+    this.saveTimer = setTimeout(() => {
+      this.saveButton.textContent = originalLabel;
+      this.saveButton.classList.remove('is-confirmed', 'is-error');
+      this.saveStatus.classList.remove('is-active');
+    }, 2200);
   }
 }

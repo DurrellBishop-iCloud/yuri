@@ -272,6 +272,18 @@ body {
   background: #31433c;
 }
 
+.editor-button.is-confirmed {
+  border-color: rgb(69 219 148 / 88%);
+  background: #176142;
+  color: #ffffff;
+}
+
+.editor-button.is-error {
+  border-color: rgb(255 107 107 / 90%);
+  background: #6d2020;
+  color: #ffffff;
+}
+
 .editor-button:focus-visible,
 .editor-field input:focus-visible,
 .editor-range input:focus-visible,
@@ -289,6 +301,25 @@ body {
   border-color: #ffd45f;
   background: #614d16;
   color: #ffffff;
+}
+
+.editor-save-status {
+  min-width: 96px;
+  padding: 0 2px;
+  color: rgb(248 242 231 / 58%);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.editor-save-status.is-active {
+  color: #d7ffe7;
+}
+
+.editor-save-status.is-error {
+  color: #ffb3b3;
 }
 
 .editor-viewport-host {
