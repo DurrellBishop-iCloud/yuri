@@ -5,7 +5,7 @@ import {
   Group,
   InstancedMesh,
   Matrix4,
-  MeshBasicMaterial,
+  MeshStandardMaterial,
   Quaternion,
   SphereGeometry,
   TorusGeometry,
@@ -303,9 +303,12 @@ export class GeometricStackField {
       return null;
     }
 
-    const material = new MeshBasicMaterial({
+    const material = new MeshStandardMaterial({
       color,
-      toneMapped: false,
+      emissive: color,
+      emissiveIntensity: 0.012,
+      roughness: 0.24,
+      metalness: 0,
     });
     const mesh = new InstancedMesh(
       spec.geometry(),
