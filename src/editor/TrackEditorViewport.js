@@ -31,6 +31,7 @@ import { CameraRig } from '../ride/CameraRig.js';
 import { clamp } from '../utils/math.js';
 import { applyAutoHandles, cloneTrackDocument, vectorFromArray, vectorToArray } from '../world/TrackDocument.js';
 import { applySavedLandscapeToTerrain } from '../world/LandscapeImageStore.js';
+import { GeometricStackField } from '../assets/GeometricStackField.js';
 
 const PICK_ANCHOR_RADIUS = 5.2;
 const PICK_HANDLE_RADIUS = 3.1;
@@ -88,6 +89,16 @@ export class TrackEditorViewport {
     this.terrain.build();
     applySavedLandscapeToTerrain(this.terrain);
     this.scene.add(this.terrain.group);
+
+    this.stackField = new GeometricStackField(this.terrain, {
+      count: 280,
+      minRadius: 90,
+      maxRadius: 395,
+      clusterThreshold: 0.3,
+    });
+    this.stackField.build();
+    this.stackField.group.visible = this.settings.showTerrain;
+    this.scene.add(this.stackField.group);
 
     this.trackManager = new TrackManager(this.scene, this.terrain, { trackDocument: this.document });
     this.trackManager.build();
@@ -152,6 +163,7 @@ export class TrackEditorViewport {
     this.settings[key] = value;
     this.trackManager.setVisible(this.settings.showRails);
     this.terrain.group.visible = this.settings.showTerrain;
+    this.stackField.group.visible = this.settings.showTerrain;
     if (key === 'toolMode') {
       this.host.dataset.toolMode = value;
     }

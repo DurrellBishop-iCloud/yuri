@@ -10,6 +10,7 @@ import {
   Vector3,
 } from 'three';
 import { TAU, hash2, signedNoise, valueNoise } from '../utils/math.js';
+import { GeometricStackField } from './GeometricStackField.js';
 import { RobotCrowdManager } from './RobotCrowdManager.js';
 
 export class AssetManager {
@@ -17,12 +18,13 @@ export class AssetManager {
     this.scene = scene;
     this.terrain = terrain;
     this.group = new Group();
+    this.stackField = new GeometricStackField(terrain, { count: 420 });
     this.robotCrowd = new RobotCrowdManager(terrain);
   }
 
   populate() {
     this.createRockFields();
-    this.createTreeBands();
+    this.createGeometricStackBands();
     this.createMarkerArches();
     this.group.add(this.robotCrowd.group);
     this.robotCrowd.load().catch((error) => {
@@ -80,58 +82,9 @@ export class AssetManager {
     this.group.add(rocks);
   }
 
-  createTreeBands() {
-    const count = 340;
-    const trunkGeometry = new ConeGeometry(0.65, 6, 7);
-    const canopyGeometry = new ConeGeometry(2.8, 8.4, 8);
-    const trunkMaterial = new MeshStandardMaterial({
-      color: 0x6b4a2e,
-      roughness: 0.86,
-      metalness: 0,
-    });
-    const canopyMaterial = new MeshStandardMaterial({
-      color: 0x255c3a,
-      roughness: 0.9,
-      metalness: 0,
-    });
-    const trunks = new InstancedMesh(trunkGeometry, trunkMaterial, count);
-    const canopies = new InstancedMesh(canopyGeometry, canopyMaterial, count);
-    trunks.castShadow = true;
-    canopies.castShadow = true;
-    canopies.receiveShadow = true;
-
-    const matrix = new Matrix4();
-    const quaternion = new Quaternion();
-    const scale = new Vector3();
-    let placed = 0;
-
-    for (let i = 0; i < count * 3 && placed < count; i += 1) {
-      const angle = hash2(i, 50) * TAU;
-      const radius = 145 + hash2(i, 51) * 260;
-      const x = Math.cos(angle) * radius + signedNoise(i * 0.02, 5) * 40;
-      const z = Math.sin(angle) * radius + signedNoise(i * 0.03, 8) * 40;
-      const glade = valueNoise(x * 0.011, z * 0.011);
-      if (glade < 0.36) {
-        continue;
-      }
-
-      const y = this.terrain.getHeightAt(x, z);
-      const treeScale = 0.72 + hash2(i, 55) * 0.78;
-      quaternion.setFromAxisAngle(new Vector3(0, 1, 0), hash2(i, 56) * TAU);
-
-      scale.setScalar(treeScale);
-      matrix.compose(new Vector3(x, y + 3 * treeScale, z), quaternion, scale);
-      trunks.setMatrixAt(placed, matrix);
-
-      scale.set(treeScale * 1.05, treeScale * (0.9 + hash2(i, 57) * 0.35), treeScale * 1.05);
-      matrix.compose(new Vector3(x, y + 8.6 * treeScale, z), quaternion, scale);
-      canopies.setMatrixAt(placed, matrix);
-      placed += 1;
-    }
-
-    trunks.count = placed;
-    canopies.count = placed;
-    this.group.add(trunks, canopies);
+  createGeometricStackBands() {
+    this.stackField.build();
+    this.group.add(this.stackField.group);
   }
 
   createMarkerArches() {
