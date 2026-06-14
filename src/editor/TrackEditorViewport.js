@@ -656,8 +656,7 @@ export class TrackEditorViewport {
 
   shouldNavigate(event) {
     return (
-      this.settings.toolMode === 'move'
-      || event.button === 2
+      event.button === 0
       || event.ctrlKey
       || event.metaKey
       || event.altKey
@@ -665,7 +664,7 @@ export class TrackEditorViewport {
   }
 
   canEditCurve(event) {
-    return this.settings.toolMode === 'edit' && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.altKey;
+    return event.button === 2 && !event.ctrlKey && !event.metaKey && !event.altKey;
   }
 
   canPanView(view) {

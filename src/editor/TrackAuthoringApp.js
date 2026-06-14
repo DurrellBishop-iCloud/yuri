@@ -29,7 +29,7 @@ export class TrackAuthoringApp {
     this.landscapeDocument = loadLocalLandscapeImage();
     this.settings = {
       viewMode: 'split',
-      toolMode: 'edit',
+      toolMode: 'move',
       smoothHandles: true,
       snapOnDrag: false,
       showRails: true,

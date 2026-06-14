@@ -65,14 +65,15 @@ export class TrackEditorUI {
 
     const tools = document.createElement('div');
     tools.className = 'editor-segment editor-tool-segment';
-    tools.setAttribute('aria-label', 'Tool mode');
+    tools.setAttribute('aria-label', 'Mouse controls');
     [
-      ['edit', 'Edit'],
-      ['move', 'Move'],
-    ].forEach(([value, label], index) => {
-      const button = this.makeButton(label, () => this.emit('toolMode', value));
+      ['left-move', 'Left Move'],
+      ['right-edit', 'Right Edit'],
+    ].forEach(([value, label]) => {
+      const button = this.makeButton(label, () => {});
       button.dataset.tool = value;
-      button.classList.toggle('is-active', index === 0);
+      button.classList.add('is-active');
+      button.setAttribute('aria-pressed', 'true');
       tools.append(button);
     });
     this.toolButtons = tools.querySelectorAll('button');
