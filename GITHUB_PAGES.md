@@ -25,3 +25,7 @@ For a user/organization Pages repo named `YOUR-USER.github.io`, the URLs are:
 6. Set **Branch** to `gh-pages` and folder to `/`.
 
 The build creates a `404.html` copy of the app so direct links like `/editor` work on GitHub Pages.
+
+## Version And Cache Refresh
+
+Every build stamps the app with a visible version made from the package version, build time, and git commit. The ride controls and editor toolbar also include a **Fresh** button that reloads with a unique `?v=` value to dodge stale browser/CDN cache.

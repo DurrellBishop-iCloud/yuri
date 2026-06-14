@@ -165,6 +165,14 @@ body {
   outline-offset: 2px;
 }
 
+.debug-version {
+  color: rgb(246 243 232 / 52%);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+}
+
 @media (max-width: 680px) {
   .hud {
     top: 10px;

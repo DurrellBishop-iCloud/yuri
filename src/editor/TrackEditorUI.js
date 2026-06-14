@@ -1,3 +1,5 @@
+import { shortVersion } from '../utils/version.js';
+
 export class TrackEditorUI {
   constructor(root) {
     this.root = root;
@@ -40,7 +42,7 @@ export class TrackEditorUI {
   buildToolbar() {
     const title = document.createElement('div');
     title.className = 'editor-title';
-    title.innerHTML = '<strong>Yuri Coast Path</strong><span>Bezier authoring</span>';
+    title.innerHTML = `<strong>Yuri Coast Path</strong><span>Bezier authoring ${shortVersion()}</span>`;
 
     const modes = document.createElement('div');
     modes.className = 'editor-segment';
@@ -80,6 +82,7 @@ export class TrackEditorUI {
       this.makeButton('Export JSON', () => this.emit('exportJSON')),
       this.makeButton('Copy Swift', () => this.emit('copySwift')),
       this.makeButton('Ride App', () => this.emit('openRide')),
+      this.makeButton('Fresh', () => this.emit('freshReload')),
     );
 
     this.importInput = document.createElement('input');

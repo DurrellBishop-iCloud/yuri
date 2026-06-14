@@ -9,6 +9,7 @@ import { InputManager } from '../input/InputManager.js';
 import { DebugUI } from '../debug/DebugUI.js';
 import { RideMusic } from '../audio/RideMusic.js';
 import { getEditorUrl } from '../utils/routes.js';
+import { freshReload } from '../utils/version.js';
 
 export class App {
   constructor(root) {
@@ -38,6 +39,9 @@ export class App {
     this.debugUI = new DebugUI(root, this.settings, {
       onOpenEditor: () => {
         window.location.href = getEditorUrl();
+      },
+      onFreshReload: () => {
+        freshReload();
       },
     });
 

@@ -1,3 +1,5 @@
+import { shortVersion } from '../utils/version.js';
+
 export class DebugUI {
   constructor(root, settings, options = {}) {
     this.settings = settings;
@@ -23,6 +25,8 @@ export class DebugUI {
     this.createToggle('music', 'Music');
     this.createToggle('paused', 'Pause');
     this.createAction('Editor', () => this.options.onOpenEditor?.());
+    this.createAction('Fresh', () => this.options.onFreshReload?.());
+    this.createVersion();
 
     root.append(this.hud, this.panel);
   }
@@ -107,6 +111,13 @@ export class DebugUI {
 
     row.append(button);
     this.panel.append(row);
+  }
+
+  createVersion() {
+    const version = document.createElement('div');
+    version.className = 'debug-version';
+    version.textContent = shortVersion();
+    this.panel.append(version);
   }
 
   update(snapshot, settings) {

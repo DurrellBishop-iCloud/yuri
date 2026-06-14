@@ -10,6 +10,7 @@ import {
   saveTrackDocumentToStorage,
 } from '../world/TrackDocument.js';
 import { getRideUrl } from '../utils/routes.js';
+import { freshReload } from '../utils/version.js';
 
 export class TrackAuthoringApp {
   constructor(root) {
@@ -62,6 +63,7 @@ export class TrackAuthoringApp {
     });
     this.ui.on('exportJSON', () => this.exportJSON());
     this.ui.on('copySwift', () => this.copySwift());
+    this.ui.on('freshReload', () => freshReload());
     this.ui.on('importJSON', (file) => this.importJSON(file));
     this.ui.on('openRide', () => {
       saveTrackDocumentToStorage(this.document);
