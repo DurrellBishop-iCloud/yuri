@@ -141,7 +141,8 @@ export class BezierTrackCurve {
 
       const curvatureBank = clamp(this.getCurvatureAt(t) * 1.7, -0.82, 0.82);
       const authoredBank = this.getInterpolatedBankAt(t);
-      normal.applyAxisAngle(tangent, curvatureBank + authoredBank).normalize();
+      const authoredTwist = this.getTwistRollAt(t);
+      normal.applyAxisAngle(tangent, curvatureBank + authoredBank + authoredTwist).normalize();
       previousNormal.copy(normal);
 
       const binormal = new Vector3().crossVectors(tangent, normal).normalize();
@@ -158,6 +159,24 @@ export class BezierTrackCurve {
   getInterpolatedBankAt(progress) {
     const { anchor, next, localT } = this.getSegment(this.mapProgressToRaw(progress));
     return anchor.bank + (next.bank - anchor.bank) * localT;
+  }
+
+  getTwistRollAt(progress) {
+    let roll = 0;
+
+    for (const twist of this.document.twists || []) {
+      const halfLength = Math.max(0.001, twist.length * 0.5);
+      const distance = Math.abs(shortestLoopDistance(progress, twist.center));
+      if (distance > halfLength) {
+        continue;
+      }
+
+      const normalizedDistance = distance / halfLength;
+      const envelope = (1 + Math.cos(Math.PI * normalizedDistance)) * 0.5;
+      roll += twist.roll * envelope;
+    }
+
+    return roll;
   }
 
   mapProgressToRaw(progress) {
@@ -202,6 +221,13 @@ function cubicBezierDerivative(p0, p1, p2, p3, t) {
 
 function wrap01(value) {
   return ((value % 1) + 1) % 1;
+}
+
+function shortestLoopDistance(a, b) {
+  let delta = wrap01(a) - wrap01(b);
+  if (delta > 0.5) delta -= 1;
+  if (delta < -0.5) delta += 1;
+  return delta;
 }
 
 const scratchCurvature = new Vector3();

@@ -1,11 +1,13 @@
 import { TrackEditorUI } from './TrackEditorUI.js';
 import { TrackEditorViewport } from './TrackEditorViewport.js';
 import {
+  createTwist,
   createDefaultTrackDocument,
   createPointAfter,
   loadTrackDocumentFromStorage,
   makeSwiftTrackSnippet,
   removePoint,
+  removeTwist,
   sanitizeTrackDocument,
   saveTrackDocumentToStorage,
 } from '../world/TrackDocument.js';
@@ -17,6 +19,7 @@ export class TrackAuthoringApp {
     this.root = root;
     this.document = loadTrackDocumentFromStorage() || createDefaultTrackDocument();
     this.selectedIndex = 0;
+    this.selectedTwistIndex = 0;
     this.settings = {
       viewMode: 'split',
       toolMode: 'edit',
@@ -49,12 +52,17 @@ export class TrackAuthoringApp {
     });
 
     this.ui.on('fieldChange', ({ key, value }) => this.updateSelectedField(key, value));
+    this.ui.on('twistChange', ({ key, value }) => this.updateSelectedTwistField(key, value));
     this.ui.on('optionChange', ({ key, value }) => {
       this.settings[key] = value;
       this.viewport.updateSetting(key, value);
     });
     this.ui.on('insertPoint', () => this.insertPoint());
     this.ui.on('deletePoint', () => this.deletePoint());
+    this.ui.on('addTwist', () => this.addTwist());
+    this.ui.on('removeTwist', () => this.removeTwist());
+    this.ui.on('previousTwist', () => this.stepTwist(-1));
+    this.ui.on('nextTwist', () => this.stepTwist(1));
     this.ui.on('snapPoint', () => this.viewport.snapPoint(this.selectedIndex));
     this.ui.on('smoothPoint', () => this.viewport.smoothPoint(this.selectedIndex));
     this.ui.on('save', () => {
@@ -75,8 +83,13 @@ export class TrackAuthoringApp {
       this.selectedIndex = index;
       this.syncUI();
     });
+    this.viewport.on('selectTwist', (index) => {
+      this.selectedTwistIndex = index;
+      this.syncUI();
+    });
     this.viewport.on('change', (document) => {
       this.document = sanitizeTrackDocument(document);
+      this.clampSelections();
       const saved = saveTrackDocumentToStorage(this.document);
       this.ui.showSaveResult(saved, saved ? `Auto-saved ${currentTimeLabel()}` : 'Auto-save failed');
       this.syncUI();
@@ -107,6 +120,27 @@ export class TrackAuthoringApp {
     this.commitDocument();
   }
 
+  updateSelectedTwistField(key, value) {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    const twist = this.getSelectedTwist();
+    if (!twist) {
+      return;
+    }
+
+    if (key === 'center') {
+      twist.center = wrap01(value);
+    } else if (key === 'length') {
+      twist.length = clampNumber(value, 0.02, 0.65);
+    } else if (key === 'roll') {
+      twist.roll = value * Math.PI / 180;
+    }
+
+    this.commitDocument();
+  }
+
   insertPoint() {
     this.document = createPointAfter(this.document, this.selectedIndex);
     this.selectedIndex = Math.min(this.selectedIndex + 1, this.document.anchors.length - 1);
@@ -119,18 +153,74 @@ export class TrackAuthoringApp {
     this.commitDocument();
   }
 
+  addTwist() {
+    const selectedTwist = this.getSelectedTwist();
+    const center = selectedTwist
+      ? wrap01(selectedTwist.center + selectedTwist.length + 0.04)
+      : this.getSelectedAnchorProgress();
+    this.document = createTwist(this.document, center);
+    this.selectedTwistIndex = this.document.twists.length - 1;
+    this.commitDocument();
+    this.ui.showToast('Twist added');
+  }
+
+  removeTwist() {
+    if (!this.document.twists?.length) {
+      this.ui.showToast('No twist selected');
+      return;
+    }
+
+    this.document = removeTwist(this.document, this.selectedTwistIndex);
+    this.selectedTwistIndex = Math.max(0, this.selectedTwistIndex - 1);
+    this.commitDocument();
+    this.ui.showToast('Twist removed');
+  }
+
+  stepTwist(direction) {
+    const count = this.document.twists?.length || 0;
+    if (!count) {
+      this.ui.showToast('No twists yet');
+      return;
+    }
+
+    this.selectedTwistIndex = (this.selectedTwistIndex + direction + count) % count;
+    this.syncUI();
+  }
+
   commitDocument() {
     this.document = sanitizeTrackDocument(this.document);
+    this.clampSelections();
     const saved = saveTrackDocumentToStorage(this.document);
     this.viewport.setDocument(this.document);
     this.viewport.setSelected(this.selectedIndex);
+    this.viewport.setSelectedTwist(this.selectedTwistIndex);
     this.syncUI();
     this.ui.showSaveResult(saved, saved ? `Auto-saved ${currentTimeLabel()}` : 'Auto-save failed');
   }
 
   syncUI() {
+    this.clampSelections();
     const anchor = this.document.anchors[this.selectedIndex];
     this.ui.updateSelection(anchor, this.selectedIndex);
+    this.ui.updateTwist(
+      this.getSelectedTwist(),
+      this.selectedTwistIndex,
+      this.document.twists?.length || 0,
+    );
+    this.viewport.setSelectedTwist(this.selectedTwistIndex);
+  }
+
+  clampSelections() {
+    this.selectedIndex = clampIndex(this.selectedIndex, this.document.anchors.length);
+    this.selectedTwistIndex = clampIndex(this.selectedTwistIndex, this.document.twists?.length || 0);
+  }
+
+  getSelectedTwist() {
+    return this.document.twists?.[this.selectedTwistIndex] || null;
+  }
+
+  getSelectedAnchorProgress() {
+    return this.document.anchors.length > 0 ? this.selectedIndex / this.document.anchors.length : 0.25;
   }
 
   exportJSON() {
@@ -155,12 +245,29 @@ export class TrackAuthoringApp {
       const text = await file.text();
       this.document = sanitizeTrackDocument(JSON.parse(text));
       this.selectedIndex = 0;
+      this.selectedTwistIndex = 0;
       this.commitDocument();
       this.ui.showToast('Track imported');
     } catch {
       this.ui.showToast('Could not import JSON');
     }
   }
+}
+
+function clampIndex(index, count) {
+  if (count <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(0, index), count - 1);
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function wrap01(value) {
+  return ((value % 1) + 1) % 1;
 }
 
 function downloadText(filename, text, type) {

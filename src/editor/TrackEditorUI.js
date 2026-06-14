@@ -5,6 +5,8 @@ export class TrackEditorUI {
     this.root = root;
     this.handlers = new Map();
     this.inputs = {};
+    this.twistInputs = {};
+    this.twistOutputs = {};
     this.metricValues = {};
 
     this.shell = document.createElement('section');
@@ -140,6 +142,31 @@ export class TrackEditorUI {
     );
     selected.append(pointActions);
 
+    const twists = document.createElement('section');
+    twists.className = 'editor-panel-section';
+    twists.innerHTML = '<h2>Twist</h2>';
+
+    this.twistName = document.createElement('div');
+    this.twistName.className = 'editor-selected-name';
+    this.twistName.textContent = 'No twist';
+    twists.append(this.twistName);
+
+    twists.append(
+      this.makeTwistRange('center', 'Position', 0, 1, 0.001),
+      this.makeTwistRange('length', 'Length', 0.02, 0.65, 0.001),
+      this.makeTwistRange('roll', 'Roll', -180, 180, 1),
+    );
+
+    const twistActions = document.createElement('div');
+    twistActions.className = 'editor-button-grid';
+    twistActions.append(
+      this.makeButton('Add', () => this.emit('addTwist')),
+      this.makeButton('Remove', () => this.emit('removeTwist')),
+      this.makeButton('Prev', () => this.emit('previousTwist')),
+      this.makeButton('Next', () => this.emit('nextTwist')),
+    );
+    twists.append(twistActions);
+
     const options = document.createElement('section');
     options.className = 'editor-panel-section';
     options.innerHTML = '<h2>Edit options</h2>';
@@ -172,7 +199,7 @@ export class TrackEditorUI {
     });
     ride.append(metrics);
 
-    this.panel.append(selected, options, ride);
+    this.panel.append(selected, twists, options, ride);
   }
 
   makeButton(label, handler) {
@@ -235,6 +262,28 @@ export class TrackEditorUI {
     return wrap;
   }
 
+  makeTwistRange(key, label, min, max, step) {
+    const wrap = document.createElement('label');
+    wrap.className = 'editor-range';
+    const output = document.createElement('output');
+    output.textContent = '0';
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = String(min);
+    input.max = String(max);
+    input.step = String(step);
+    input.value = String(min);
+    input.addEventListener('input', () => {
+      const value = Number(input.value);
+      output.textContent = this.formatTwistValue(key, value);
+      this.emit('twistChange', { key, value });
+    });
+    this.twistInputs[key] = input;
+    this.twistOutputs[key] = output;
+    wrap.append(label, input, output);
+    return wrap;
+  }
+
   updateSelection(anchor, index) {
     this.selectedName.textContent = `Point ${index + 1}`;
     this.setInputValue('x', anchor.position[0], 1);
@@ -248,6 +297,26 @@ export class TrackEditorUI {
     this.metricValues.length.textContent = `${Math.round(length)} m`;
     this.metricValues.speed.textContent = `${Math.round(speed)} m/s`;
     this.metricValues.grade.textContent = `${Math.round(grade * 100)}%`;
+  }
+
+  updateTwist(twist, index, count) {
+    const hasTwist = Boolean(twist);
+    this.twistName.textContent = hasTwist ? `Twist ${index + 1} of ${count}` : 'No twist';
+
+    Object.values(this.twistInputs).forEach((input) => {
+      input.disabled = !hasTwist;
+    });
+
+    if (!hasTwist) {
+      this.setTwistInputValue('center', 0, 3);
+      this.setTwistInputValue('length', 0, 3);
+      this.setTwistInputValue('roll', 0, 0);
+      return;
+    }
+
+    this.setTwistInputValue('center', twist.center, 3);
+    this.setTwistInputValue('length', twist.length, 3);
+    this.setTwistInputValue('roll', twist.roll * 180 / Math.PI, 0);
   }
 
   setViewMode(mode) {
@@ -269,6 +338,27 @@ export class TrackEditorUI {
     }
 
     input.value = Number(value).toFixed(decimals);
+  }
+
+  setTwistInputValue(key, value, decimals) {
+    const input = this.twistInputs[key];
+    const output = this.twistOutputs[key];
+    if (!input || document.activeElement === input) {
+      return;
+    }
+
+    input.value = Number(value).toFixed(decimals);
+    if (output) {
+      output.textContent = this.formatTwistValue(key, Number(input.value));
+    }
+  }
+
+  formatTwistValue(key, value) {
+    if (key === 'roll') {
+      return `${Math.round(value)} deg`;
+    }
+
+    return value.toFixed(3);
   }
 
   showToast(message) {

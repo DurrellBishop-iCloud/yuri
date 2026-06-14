@@ -32,6 +32,7 @@ import { applyAutoHandles, cloneTrackDocument, vectorFromArray, vectorToArray } 
 
 const PICK_ANCHOR_RADIUS = 5.2;
 const PICK_HANDLE_RADIUS = 3.1;
+const PICK_TWIST_RADIUS = 4.4;
 const TERRAIN_CLEARANCE = 10;
 
 export class TrackEditorViewport {
@@ -50,6 +51,7 @@ export class TrackEditorViewport {
     this.viewRects = [];
     this.needsTrackRebuild = false;
     this.viewPan = null;
+    this.selectedTwistIndex = 0;
 
     this.canvas = window.document.createElement('canvas');
     this.canvas.className = 'editor-canvas';
@@ -129,6 +131,15 @@ export class TrackEditorViewport {
     this.rebuildOverlay();
   }
 
+  setSelectedTwist(index) {
+    if (this.selectedTwistIndex === index) {
+      return;
+    }
+
+    this.selectedTwistIndex = index;
+    this.rebuildOverlay();
+  }
+
   setViewMode(mode) {
     this.settings.viewMode = mode;
     this.resize();
@@ -202,6 +213,7 @@ export class TrackEditorViewport {
     this.pickables = [];
 
     this.addCurveLine();
+    this.addTwistMarkers();
     this.addControlHandles();
     this.scene.add(this.overlayGroup);
   }
@@ -218,6 +230,80 @@ export class TrackEditorViewport {
     );
     line.renderOrder = 50;
     this.overlayGroup.add(line);
+  }
+
+  addTwistMarkers() {
+    const twists = this.document.twists || [];
+    if (!twists.length) {
+      return;
+    }
+
+    const selectedLineMaterial = new LineBasicMaterial({
+      color: 0xffebff,
+      transparent: true,
+      opacity: 0.98,
+      depthTest: false,
+    });
+    const lineMaterial = new LineBasicMaterial({
+      color: 0xaa66ff,
+      transparent: true,
+      opacity: 0.64,
+      depthTest: false,
+    });
+    const selectedCenterMaterial = new MeshBasicMaterial({ color: 0xffffff, depthTest: false });
+    const centerMaterial = new MeshBasicMaterial({ color: 0xd06bff, depthTest: false });
+    const capMaterial = new MeshBasicMaterial({ color: 0x6feaff, depthTest: false });
+    const centerGeometry = new SphereGeometry(PICK_TWIST_RADIUS, 18, 12);
+    const capGeometry = new SphereGeometry(2.8, 14, 10);
+    const frame = {
+      position: new Vector3(),
+      tangent: new Vector3(),
+      normal: new Vector3(),
+      binormal: new Vector3(),
+    };
+
+    twists.forEach((twist, index) => {
+      const isSelected = index === this.selectedTwistIndex;
+      const sampleCount = Math.max(12, Math.ceil(twist.length * 340));
+      const start = twist.center - twist.length * 0.5;
+      const points = [];
+
+      for (let sample = 0; sample <= sampleCount; sample += 1) {
+        const progress = wrap01(start + twist.length * (sample / sampleCount));
+        points.push(this.getOffsetCurvePoint(progress, frame, 3.2));
+      }
+
+      const line = new Line(
+        new BufferGeometry().setFromPoints(points),
+        isSelected ? selectedLineMaterial : lineMaterial,
+      );
+      line.renderOrder = isSelected ? 78 : 68;
+      this.overlayGroup.add(line);
+
+      this.addTwistPickMesh(index, 'center', twist.center, centerGeometry, isSelected ? selectedCenterMaterial : centerMaterial, 88);
+      this.addTwistPickMesh(index, 'start', start, capGeometry, capMaterial, 86);
+      this.addTwistPickMesh(index, 'end', twist.center + twist.length * 0.5, capGeometry, capMaterial, 86);
+    });
+  }
+
+  addTwistPickMesh(index, part, progress, geometry, material, renderOrder) {
+    const mesh = new Mesh(geometry, material);
+    mesh.position.copy(this.getOffsetCurvePoint(progress, undefined, 4.2));
+    mesh.renderOrder = renderOrder;
+    mesh.userData.pick = { type: 'twist', index, part };
+    this.pickables.push(mesh);
+    this.overlayGroup.add(mesh);
+  }
+
+  getOffsetCurvePoint(progress, reusableFrame, offset) {
+    const frame = reusableFrame || {
+      position: new Vector3(),
+      tangent: new Vector3(),
+      normal: new Vector3(),
+      binormal: new Vector3(),
+    };
+    this.trackManager.curve.getFrameAt(progress, frame);
+    return frame.position.clone().add(frame.normal.clone().multiplyScalar(offset));
   }
 
   addControlHandles() {
@@ -239,7 +325,7 @@ export class TrackEditorViewport {
       const anchorMesh = new Mesh(anchorGeometry, isAnchorSelected ? selectedMaterial : anchorMaterial);
       anchorMesh.position.copy(position);
       anchorMesh.renderOrder = 80;
-      anchorMesh.userData.pick = { index, part: 'anchor' };
+      anchorMesh.userData.pick = { type: 'point', index, part: 'anchor' };
       this.pickables.push(anchorMesh);
       this.overlayGroup.add(anchorMesh);
 
@@ -253,7 +339,7 @@ export class TrackEditorViewport {
         );
         handleMesh.position.copy(handlePosition);
         handleMesh.renderOrder = 80;
-        handleMesh.userData.pick = { index, part };
+        handleMesh.userData.pick = { type: 'point', index, part };
         this.pickables.push(handleMesh);
         this.overlayGroup.add(handleMesh);
         handleLinePoints.push(position, handlePosition);
@@ -294,10 +380,31 @@ export class TrackEditorViewport {
       return;
     }
 
+    const picked = pick.object.userData.pick;
     this.canvas.setPointerCapture(event.pointerId);
-    this.selected = pick.object.userData.pick;
+
+    if (picked.type === 'twist') {
+      if (this.selectedTwistIndex !== picked.index) {
+        this.selectedTwistIndex = picked.index;
+        this.rebuildOverlay();
+      }
+      this.emit('selectTwist', picked.index);
+      this.drag = {
+        type: 'twist',
+        view,
+        index: picked.index,
+        part: picked.part,
+      };
+      this.host.classList.add('is-dragging');
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    this.selected = { index: picked.index, part: picked.part };
     this.emit('select', this.selected.index);
     this.drag = {
+      type: 'point',
       view,
       index: this.selected.index,
       part: this.selected.part,
@@ -324,7 +431,11 @@ export class TrackEditorViewport {
       return;
     }
 
-    this.applyWorldPosition(this.drag.index, this.drag.part, world);
+    if (this.drag.type === 'twist') {
+      this.applyTwistWorldPosition(this.drag.index, this.drag.part, world);
+    } else {
+      this.applyWorldPosition(this.drag.index, this.drag.part, world);
+    }
     this.emit('change', this.document);
     this.queueTrackRebuild();
     this.rebuildOverlay();
@@ -363,7 +474,9 @@ export class TrackEditorViewport {
     this.setPointerFromEvent(event, drag.view);
     this.raycaster.setFromCamera(this.pointer, drag.view.camera);
 
-    const current = this.getWorldPositionForPart(drag.index, drag.part);
+    const current = drag.type === 'twist'
+      ? this.getWorldPositionForTwist(drag.index, drag.part)
+      : this.getWorldPositionForPart(drag.index, drag.part);
     if (drag.view.type === 'plan') {
       this.dragPlane.setFromNormalAndCoplanarPoint(new Vector3(0, 1, 0), current);
     } else if (drag.view.type === 'elevation') {
@@ -377,7 +490,7 @@ export class TrackEditorViewport {
       return null;
     }
 
-    if (drag.part === 'anchor') {
+    if (drag.type !== 'twist' && drag.part === 'anchor') {
       const terrainY = this.terrain.getHeightAt(this.dragWorld.x, this.dragWorld.z);
       if (this.settings.snapOnDrag && drag.view.type !== 'elevation') {
         this.dragWorld.y = terrainY + TERRAIN_CLEARANCE;
@@ -387,6 +500,22 @@ export class TrackEditorViewport {
     }
 
     return this.dragWorld.clone();
+  }
+
+  applyTwistWorldPosition(index, part, world) {
+    const twist = this.document.twists?.[index];
+    if (!twist) {
+      return;
+    }
+
+    const progress = this.findNearestProgress(world, twist.center);
+    if (part === 'center') {
+      twist.center = progress;
+      return;
+    }
+
+    const distance = Math.abs(shortestLoopDistance(progress, twist.center));
+    twist.length = clamp(distance * 2, 0.02, 0.65);
   }
 
   applyWorldPosition(index, part, world) {
@@ -447,6 +576,49 @@ export class TrackEditorViewport {
     }
 
     return position.add(vectorFromArray(anchor[part]));
+  }
+
+  getWorldPositionForTwist(index, part) {
+    const twist = this.document.twists?.[index];
+    if (!twist) {
+      return new Vector3();
+    }
+
+    let progress = twist.center;
+    if (part === 'start') {
+      progress = twist.center - twist.length * 0.5;
+    } else if (part === 'end') {
+      progress = twist.center + twist.length * 0.5;
+    }
+
+    return this.getOffsetCurvePoint(progress, undefined, 4.2);
+  }
+
+  findNearestProgress(world, preferredProgress) {
+    let bestProgress = wrap01(preferredProgress);
+    let bestDistance = Infinity;
+    const coarseSamples = 360;
+
+    for (let index = 0; index < coarseSamples; index += 1) {
+      const progress = index / coarseSamples;
+      const distance = this.trackManager.curve.getPointAt(progress).distanceToSquared(world);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestProgress = progress;
+      }
+    }
+
+    const refinementStep = 1 / coarseSamples;
+    for (let index = -8; index <= 8; index += 1) {
+      const progress = wrap01(bestProgress + index * refinementStep / 8);
+      const distance = this.trackManager.curve.getPointAt(progress).distanceToSquared(world);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestProgress = progress;
+      }
+    }
+
+    return bestProgress;
   }
 
   setPointerFromEvent(event, view) {
@@ -642,4 +814,15 @@ function disposeObject(object) {
       child.material?.dispose();
     }
   });
+}
+
+function wrap01(value) {
+  return ((value % 1) + 1) % 1;
+}
+
+function shortestLoopDistance(a, b) {
+  let delta = wrap01(a) - wrap01(b);
+  if (delta > 0.5) delta -= 1;
+  if (delta < -0.5) delta += 1;
+  return delta;
 }

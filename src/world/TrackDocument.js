@@ -1,4 +1,5 @@
 import { Vector3 } from 'three';
+import { clamp } from '../utils/math.js';
 
 export const TRACK_STORAGE_KEY = 'yuriCoast.trackDocument.v1';
 
@@ -32,6 +33,14 @@ export function createDefaultTrackDocument() {
     closed: true,
     units: 'meters',
     anchors,
+    twists: [
+      {
+        id: 'twist-demo',
+        center: 0.38,
+        length: 0.12,
+        roll: 1.2,
+      },
+    ],
   };
 }
 
@@ -44,6 +53,7 @@ export function cloneTrackDocument(document) {
       in: [...anchor.in],
       out: [...anchor.out],
     })),
+    twists: (document.twists || []).map((twist) => ({ ...twist })),
   };
 }
 
@@ -70,6 +80,7 @@ export function sanitizeTrackDocument(input) {
     closed: input.closed !== false,
     units: 'meters',
     anchors,
+    twists: sanitizeTwists(input.twists),
   };
 }
 
@@ -128,6 +139,27 @@ export function removePoint(document, anchorIndex) {
   return doc;
 }
 
+export function createTwist(document, center = 0.25) {
+  const doc = cloneTrackDocument(document);
+  doc.twists = doc.twists || [];
+  doc.twists.push({
+    id: `tw${Date.now().toString(36).slice(-5)}`,
+    center: wrap01(center),
+    length: 0.12,
+    roll: Math.PI,
+  });
+  return doc;
+}
+
+export function removeTwist(document, twistIndex) {
+  const doc = cloneTrackDocument(document);
+  doc.twists = doc.twists || [];
+  if (twistIndex >= 0 && twistIndex < doc.twists.length) {
+    doc.twists.splice(twistIndex, 1);
+  }
+  return doc;
+}
+
 export function applyAutoHandles(anchors, tension = 0.18) {
   const count = anchors.length;
 
@@ -172,6 +204,23 @@ function sanitizeVector(value, fallback) {
   return [0, 1, 2].map((index) => (
     Number.isFinite(Number(value[index])) ? Number(value[index]) : fallback[index]
   ));
+}
+
+function sanitizeTwists(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((twist, index) => ({
+    id: String(twist.id || `tw${String(index + 1).padStart(2, '0')}`),
+    center: wrap01(Number.isFinite(Number(twist.center)) ? Number(twist.center) : 0),
+    length: clamp(Number.isFinite(Number(twist.length)) ? Number(twist.length) : 0.12, 0.02, 0.65),
+    roll: clamp(Number.isFinite(Number(twist.roll)) ? Number(twist.roll) : 0, -Math.PI * 2, Math.PI * 2),
+  }));
+}
+
+function wrap01(value) {
+  return ((value % 1) + 1) % 1;
 }
 
 function round3(value) {
