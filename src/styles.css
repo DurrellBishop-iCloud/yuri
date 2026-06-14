@@ -52,6 +52,11 @@ body {
   pointer-events: none;
 }
 
+.hud[hidden],
+.debug-panel[hidden] {
+  display: none;
+}
+
 .hud-metric,
 .debug-panel {
   border: 1px solid rgb(255 255 255 / 18%);

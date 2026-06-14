@@ -63,6 +63,7 @@ export class App {
       },
     });
 
+    this.toggleRideUI = this.toggleRideUI.bind(this);
     this.frame = this.frame.bind(this);
   }
 
@@ -83,8 +84,17 @@ export class App {
     });
     this.trackManager.setVisible(this.settings.trackVisible);
     this.rideMusic.attach(window);
+    this.sceneManager.canvas.addEventListener('click', this.toggleRideUI);
 
     this.sceneManager.renderer.setAnimationLoop(this.frame);
+  }
+
+  toggleRideUI(event) {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    this.debugUI.toggle();
   }
 
   frame() {

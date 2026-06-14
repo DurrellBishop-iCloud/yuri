@@ -7,6 +7,7 @@ export class DebugUI {
     this.changeHandlers = new Set();
     this.root = root;
     this.metrics = {};
+    this.visible = false;
     this.panel = document.createElement('section');
     this.panel.className = 'debug-panel';
     this.panel.setAttribute('aria-label', 'Ride controls');
@@ -31,10 +32,24 @@ export class DebugUI {
     this.createVersion();
 
     root.append(this.hud, this.panel);
+    this.setVisible(false);
   }
 
   onChange(handler) {
     this.changeHandlers.add(handler);
+  }
+
+  toggle() {
+    this.setVisible(!this.visible);
+  }
+
+  setVisible(visible) {
+    this.visible = visible;
+    this.hud.hidden = !visible;
+    this.panel.hidden = !visible;
+    this.hud.setAttribute('aria-hidden', String(!visible));
+    this.panel.setAttribute('aria-hidden', String(!visible));
+    this.root.classList.toggle('ride-ui-visible', visible);
   }
 
   emitChange() {

@@ -160,8 +160,8 @@ export class TrackEditorUI {
     const twistActions = document.createElement('div');
     twistActions.className = 'editor-button-grid';
     twistActions.append(
-      this.makeButton('Add', () => this.emit('addTwist')),
-      this.makeButton('Remove', () => this.emit('removeTwist')),
+      this.makeButton('Add Twist', () => this.emit('addTwist')),
+      this.makeButton('Remove Twist', () => this.emit('removeTwist')),
       this.makeButton('Prev', () => this.emit('previousTwist')),
       this.makeButton('Next', () => this.emit('nextTwist')),
     );
@@ -333,7 +333,7 @@ export class TrackEditorUI {
 
   updateTwist(twist, index, count) {
     const hasTwist = Boolean(twist);
-    this.twistName.textContent = hasTwist ? `Twist ${index + 1} of ${count}` : 'No twist';
+    this.twistName.textContent = hasTwist ? `Twist marker ${index + 1} of ${count}` : 'No twist';
 
     Object.values(this.twistInputs).forEach((input) => {
       input.disabled = !hasTwist;

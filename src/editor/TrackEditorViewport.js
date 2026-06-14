@@ -11,6 +11,7 @@ import {
   LineSegments,
   Mesh,
   MeshBasicMaterial,
+  OctahedronGeometry,
   OrthographicCamera,
   PerspectiveCamera,
   Plane,
@@ -264,8 +265,8 @@ export class TrackEditorViewport {
     const selectedCenterMaterial = new MeshBasicMaterial({ color: 0xffffff, depthTest: false });
     const centerMaterial = new MeshBasicMaterial({ color: 0xd06bff, depthTest: false });
     const capMaterial = new MeshBasicMaterial({ color: 0x6feaff, depthTest: false });
-    const centerGeometry = new SphereGeometry(PICK_TWIST_RADIUS, 18, 12);
-    const capGeometry = new SphereGeometry(2.8, 14, 10);
+    const centerGeometry = new OctahedronGeometry(PICK_TWIST_RADIUS * 1.08, 0);
+    const capGeometry = new OctahedronGeometry(3.1, 0);
     const frame = {
       position: new Vector3(),
       tangent: new Vector3(),
