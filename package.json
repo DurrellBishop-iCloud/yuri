@@ -9,6 +9,8 @@
     "build": "vite build && node scripts/prepare-pages.mjs",
     "build:vite": "vite build",
     "landscape:publish": "node scripts/publish-landscape.mjs",
+    "vision:track": "node scripts/apply-vision-track.mjs",
+    "vision:landscape": "node scripts/apply-vision-landscape.mjs",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

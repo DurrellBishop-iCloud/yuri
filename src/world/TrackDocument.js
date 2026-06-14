@@ -180,11 +180,38 @@ export function makeSwiftTrackSnippet(document) {
     const o = anchor.out.map((value) => value.toFixed(3)).join(', ');
     return `    TrackAnchor(position: SIMD3<Float>(${p}), inHandle: SIMD3<Float>(${i}), outHandle: SIMD3<Float>(${o}), bank: ${anchor.bank.toFixed(3)}, speed: ${anchor.speed.toFixed(3)})`;
   });
+  const twists = doc.twists.map((twist) => (
+    `    TrackTwist(center: ${twist.center.toFixed(5)}, length: ${twist.length.toFixed(5)}, roll: ${twist.roll.toFixed(5)})`
+  ));
+  const swiftAnchors = anchors.map((line) => `        ${line.trim()}`).join(',\n');
+  const swiftTwists = twists.map((line) => `        ${line.trim()}`).join(',\n');
 
   return [
-    'let authoredTrackAnchors: [TrackAnchor] = [',
-    anchors.join(',\n'),
-    ']',
+    'import simd',
+    '',
+    'struct TrackAnchor {',
+    '    let position: SIMD3<Float>',
+    '    let inHandle: SIMD3<Float>',
+    '    let outHandle: SIMD3<Float>',
+    '    let bank: Float',
+    '    let speed: Float',
+    '}',
+    '',
+    'struct TrackTwist {',
+    '    let center: Float',
+    '    let length: Float',
+    '    let roll: Float',
+    '}',
+    '',
+    'enum AuthoredTrack {',
+    '    static let anchors: [TrackAnchor] = [',
+    swiftAnchors,
+    '    ]',
+    '',
+    '    static let twists: [TrackTwist] = [',
+    swiftTwists,
+    '    ]',
+    '}',
   ].join('\n');
 }
 
