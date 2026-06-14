@@ -77,13 +77,20 @@ export class BezierTrackCurve {
 
   getRawTangentAt(progress) {
     const { anchor, next, localT } = this.getSegment(progress);
-    return cubicBezierDerivative(
+    const tangent = cubicBezierDerivative(
       vectorFromArray(anchor.position),
       vectorFromArray(anchor.position).add(vectorFromArray(anchor.out)),
       vectorFromArray(next.position).add(vectorFromArray(next.in)),
       vectorFromArray(next.position),
       localT,
-    ).normalize();
+    );
+
+    if (tangent.lengthSq() > 0.000001) {
+      return tangent.normalize();
+    }
+
+    const fallback = this.getRawPointAt(progress + 0.0007).sub(this.getRawPointAt(progress - 0.0007));
+    return fallback.lengthSq() > 0.000001 ? fallback.normalize() : new Vector3(0, 0, 1);
   }
 
   getSegment(progress) {
@@ -122,28 +129,30 @@ export class BezierTrackCurve {
     const tangents = [];
     const normals = [];
     const binormals = [];
-    const previousNormal = new Vector3(0, 1, 0);
-    const side = new Vector3();
+    const previousTangent = this.getTangentAt(0).normalize();
+    const transportNormal = getStableNormalForTangent(previousTangent);
+    const rotationAxis = new Vector3();
 
     for (let index = 0; index <= this.samples; index += 1) {
       const t = index / this.samples;
       const position = this.getPointAt(t);
       const tangent = this.getTangentAt(t).normalize();
 
-      side.crossVectors(WORLD_UP, tangent);
-      if (side.lengthSq() < 0.0001) {
-        side.set(1, 0, 0);
+      if (index > 0) {
+        rotationAxis.crossVectors(previousTangent, tangent);
+        const axisLength = rotationAxis.length();
+        if (axisLength > 0.000001) {
+          const angle = Math.atan2(axisLength, clamp(previousTangent.dot(tangent), -1, 1));
+          transportNormal.applyAxisAngle(rotationAxis.multiplyScalar(1 / axisLength), angle);
+        }
       }
-      side.normalize();
 
-      const normal = new Vector3().crossVectors(tangent, side).normalize();
-      normal.lerp(previousNormal, 0.72).normalize();
+      orthogonalizeNormal(transportNormal, tangent);
 
       const curvatureBank = clamp(this.getCurvatureAt(t) * 1.7, -0.82, 0.82);
       const authoredBank = this.getInterpolatedBankAt(t);
       const authoredTwist = this.getTwistRollAt(t);
-      normal.applyAxisAngle(tangent, curvatureBank + authoredBank + authoredTwist).normalize();
-      previousNormal.copy(normal);
+      const normal = transportNormal.clone().applyAxisAngle(tangent, curvatureBank + authoredBank + authoredTwist).normalize();
 
       const binormal = new Vector3().crossVectors(tangent, normal).normalize();
 
@@ -151,6 +160,8 @@ export class BezierTrackCurve {
       tangents.push(tangent.clone());
       normals.push(normal.clone());
       binormals.push(binormal.clone());
+
+      previousTangent.copy(tangent);
     }
 
     return { positions, tangents, normals, binormals };
@@ -221,6 +232,25 @@ function cubicBezierDerivative(p0, p1, p2, p3, t) {
 
 function wrap01(value) {
   return ((value % 1) + 1) % 1;
+}
+
+function getStableNormalForTangent(tangent) {
+  const normal = WORLD_UP.clone().addScaledVector(tangent, -WORLD_UP.dot(tangent));
+  if (normal.lengthSq() > 0.000001) {
+    return normal.normalize();
+  }
+
+  return new Vector3(1, 0, 0).addScaledVector(tangent, -tangent.x).normalize();
+}
+
+function orthogonalizeNormal(normal, tangent) {
+  normal.addScaledVector(tangent, -normal.dot(tangent));
+  if (normal.lengthSq() > 0.000001) {
+    normal.normalize();
+    return;
+  }
+
+  normal.copy(getStableNormalForTangent(tangent));
 }
 
 function shortestLoopDistance(a, b) {

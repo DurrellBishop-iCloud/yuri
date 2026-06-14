@@ -29,6 +29,7 @@ import { PhysicsMotion } from '../ride/PhysicsMotion.js';
 import { CameraRig } from '../ride/CameraRig.js';
 import { clamp } from '../utils/math.js';
 import { applyAutoHandles, cloneTrackDocument, vectorFromArray, vectorToArray } from '../world/TrackDocument.js';
+import { applySavedLandscapeToTerrain } from '../world/LandscapeImageStore.js';
 
 const PICK_ANCHOR_RADIUS = 5.2;
 const PICK_HANDLE_RADIUS = 3.1;
@@ -84,6 +85,7 @@ export class TrackEditorViewport {
 
     this.terrain = new TerrainManager();
     this.terrain.build();
+    applySavedLandscapeToTerrain(this.terrain);
     this.scene.add(this.terrain.group);
 
     this.trackManager = new TrackManager(this.scene, this.terrain, { trackDocument: this.document });
@@ -152,6 +154,15 @@ export class TrackEditorViewport {
     if (key === 'toolMode') {
       this.host.dataset.toolMode = value;
     }
+  }
+
+  async setLandscapeImage(source) {
+    await this.terrain.setLandscapeImage(source);
+  }
+
+  async reloadLandscapeImage() {
+    this.terrain.clearLandscapeImage();
+    await applySavedLandscapeToTerrain(this.terrain);
   }
 
   addLights() {
@@ -464,6 +475,10 @@ export class TrackEditorViewport {
   }
 
   pick(event, view) {
+    if (!this.settings.showEditGuides) {
+      return null;
+    }
+
     this.setPointerFromEvent(event, view);
     this.raycaster.setFromCamera(this.pointer, view.camera);
     const hits = this.raycaster.intersectObjects(this.pickables, false);
@@ -740,8 +755,10 @@ export class TrackEditorViewport {
       if (view.camera.isPerspectiveCamera) {
         view.camera.updateProjectionMatrix();
       }
+      this.overlayGroup.visible = Boolean(this.settings.showEditGuides) && view.type !== 'ride';
       this.renderer.render(this.scene, view.camera);
     }
+    this.overlayGroup.visible = Boolean(this.settings.showEditGuides);
 
     this.positionLabels();
   }

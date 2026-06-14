@@ -10,6 +10,11 @@ import { DebugUI } from '../debug/DebugUI.js';
 import { RideMusic } from '../audio/RideMusic.js';
 import { getEditorUrl } from '../utils/routes.js';
 import { freshReload } from '../utils/version.js';
+import {
+  applySavedLandscapeToTerrain,
+  clearLocalLandscapeImage,
+  loadLandscapeImageFromFile,
+} from '../world/LandscapeImageStore.js';
 
 export class App {
   constructor(root) {
@@ -43,6 +48,19 @@ export class App {
       onFreshReload: () => {
         freshReload();
       },
+      onLoadLandscape: async (file) => {
+        try {
+          const landscape = await loadLandscapeImageFromFile(file);
+          await this.terrainManager.setLandscapeImage(landscape.dataUrl);
+        } catch {
+          this.terrainManager.clearLandscapeImage();
+        }
+      },
+      onClearLandscape: async () => {
+        clearLocalLandscapeImage();
+        this.terrainManager.clearLandscapeImage();
+        await applySavedLandscapeToTerrain(this.terrainManager);
+      },
     });
 
     this.frame = this.frame.bind(this);
@@ -50,6 +68,7 @@ export class App {
 
   start() {
     this.terrainManager.build();
+    applySavedLandscapeToTerrain(this.terrainManager);
     this.trackManager.build();
     this.assetManager.populate();
     this.sceneManager.add(this.terrainManager.group);

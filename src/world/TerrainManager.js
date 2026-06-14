@@ -8,6 +8,7 @@ import {
   PlaneGeometry,
   RepeatWrapping,
   SRGBColorSpace,
+  TextureLoader,
 } from 'three';
 import { signedNoise, smoothstep, valueNoise } from '../utils/math.js';
 
@@ -21,6 +22,7 @@ export class TerrainManager {
     this.colorDryGrass = new Color(0xa4a45b);
     this.colorDirt = new Color(0x8a6742);
     this.colorStone = new Color(0x7c8275);
+    this.customTexture = null;
   }
 
   build() {
@@ -53,6 +55,38 @@ export class TerrainManager {
     this.mesh = new Mesh(geometry, material);
     this.mesh.receiveShadow = true;
     this.group.add(this.mesh);
+  }
+
+  async setLandscapeImage(source) {
+    const texture = await loadTexture(source);
+    texture.colorSpace = SRGBColorSpace;
+    texture.needsUpdate = true;
+
+    this.customTexture?.dispose();
+    this.customTexture = texture;
+
+    if (!this.mesh) {
+      return;
+    }
+
+    this.mesh.material.map = texture;
+    this.mesh.material.vertexColors = false;
+    this.mesh.material.color.set(0xffffff);
+    this.mesh.material.needsUpdate = true;
+  }
+
+  clearLandscapeImage() {
+    this.customTexture?.dispose();
+    this.customTexture = null;
+
+    if (!this.mesh) {
+      return;
+    }
+
+    this.mesh.material.map = this.texture;
+    this.mesh.material.vertexColors = true;
+    this.mesh.material.color.set(0xffffff);
+    this.mesh.material.needsUpdate = true;
   }
 
   getHeightAt(x, z) {
@@ -106,4 +140,10 @@ export class TerrainManager {
     texture.colorSpace = SRGBColorSpace;
     return texture;
   }
+}
+
+function loadTexture(source) {
+  return new Promise((resolve, reject) => {
+    new TextureLoader().load(source, resolve, undefined, reject);
+  });
 }

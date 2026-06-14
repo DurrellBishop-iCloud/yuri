@@ -13,6 +13,12 @@ import {
 } from '../world/TrackDocument.js';
 import { getRideUrl } from '../utils/routes.js';
 import { freshReload } from '../utils/version.js';
+import {
+  clearLocalLandscapeImage,
+  loadLandscapeImageFromFile,
+  loadLocalLandscapeImage,
+  loadPublishedLandscapeImage,
+} from '../world/LandscapeImageStore.js';
 
 export class TrackAuthoringApp {
   constructor(root) {
@@ -20,6 +26,7 @@ export class TrackAuthoringApp {
     this.document = loadTrackDocumentFromStorage() || createDefaultTrackDocument();
     this.selectedIndex = 0;
     this.selectedTwistIndex = 0;
+    this.landscapeDocument = loadLocalLandscapeImage();
     this.settings = {
       viewMode: 'split',
       toolMode: 'edit',
@@ -27,6 +34,7 @@ export class TrackAuthoringApp {
       snapOnDrag: false,
       showRails: true,
       showTerrain: true,
+      showEditGuides: true,
       rideSpeed: 1,
       rideShake: 0.28,
     };
@@ -35,6 +43,7 @@ export class TrackAuthoringApp {
     this.viewport = new TrackEditorViewport(this.ui.viewportHost, this.document, this.settings);
     this.bind();
     this.syncUI();
+    this.syncLandscapeUI();
   }
 
   start() {}
@@ -71,6 +80,9 @@ export class TrackAuthoringApp {
       this.ui.showSaveResult(saved, saved ? `Saved ${currentTimeLabel()}` : 'Save failed');
     });
     this.ui.on('exportJSON', () => this.exportJSON());
+    this.ui.on('loadLandscapeImage', (file) => this.loadLandscapeImage(file));
+    this.ui.on('clearLandscapeImage', () => this.clearLandscapeImage());
+    this.ui.on('exportLandscapeImage', () => this.exportLandscapeImage());
     this.ui.on('copySwift', () => this.copySwift());
     this.ui.on('freshReload', () => freshReload());
     this.ui.on('importJSON', (file) => this.importJSON(file));
@@ -223,10 +235,59 @@ export class TrackAuthoringApp {
     return this.document.anchors.length > 0 ? this.selectedIndex / this.document.anchors.length : 0.25;
   }
 
+  async syncLandscapeUI() {
+    const local = loadLocalLandscapeImage();
+    if (local) {
+      this.landscapeDocument = local;
+      this.ui.updateLandscape(local.name, 'local');
+      return;
+    }
+
+    const published = await loadPublishedLandscapeImage();
+    this.landscapeDocument = null;
+    if (published) {
+      this.ui.updateLandscape(published.name, 'published');
+      return;
+    }
+
+    this.ui.updateLandscape('', 'generated');
+  }
+
   exportJSON() {
     const text = `${JSON.stringify(this.document, null, 2)}\n`;
     downloadText('yuri-coast-track.json', text, 'application/json');
     this.ui.showToast('JSON exported');
+  }
+
+  async loadLandscapeImage(file) {
+    try {
+      const landscape = await loadLandscapeImageFromFile(file);
+      this.landscapeDocument = landscape;
+      await this.viewport.setLandscapeImage(landscape.dataUrl);
+      this.ui.updateLandscape(landscape.name, 'local');
+      this.ui.showToast(landscape.saved ? 'Landscape loaded' : 'Landscape loaded for this session');
+    } catch {
+      this.ui.showToast('Could not load photo');
+    }
+  }
+
+  async clearLandscapeImage() {
+    clearLocalLandscapeImage();
+    this.landscapeDocument = null;
+    await this.viewport.reloadLandscapeImage();
+    await this.syncLandscapeUI();
+    this.ui.showToast('Landscape cleared');
+  }
+
+  exportLandscapeImage() {
+    const landscape = this.landscapeDocument || loadLocalLandscapeImage();
+    if (!landscape?.dataUrl) {
+      this.ui.showToast('No local photo');
+      return;
+    }
+
+    downloadDataUrl(makeSafeLandscapeFilename(landscape.name, landscape.dataUrl), landscape.dataUrl);
+    this.ui.showToast('Landscape exported');
   }
 
   async copySwift() {
@@ -278,6 +339,23 @@ function downloadText(filename, text, type) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadDataUrl(filename, dataUrl) {
+  const anchor = document.createElement('a');
+  anchor.href = dataUrl;
+  anchor.download = filename;
+  anchor.click();
+}
+
+function makeSafeLandscapeFilename(name, dataUrl) {
+  const base = String(name || 'yuri-landscape')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[^a-z0-9_-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || 'yuri-landscape';
+  const extension = dataUrl?.startsWith('data:image/png') ? 'png' : 'jpg';
+  return `${base}.${extension}`;
 }
 
 function currentTimeLabel() {

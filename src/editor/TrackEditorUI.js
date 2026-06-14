@@ -167,6 +167,37 @@ export class TrackEditorUI {
     );
     twists.append(twistActions);
 
+    const landscape = document.createElement('section');
+    landscape.className = 'editor-panel-section';
+    landscape.innerHTML = '<h2>Landscape</h2>';
+
+    this.landscapeName = document.createElement('div');
+    this.landscapeName.className = 'editor-selected-name';
+    this.landscapeName.textContent = 'Generated terrain';
+    landscape.append(this.landscapeName);
+
+    this.landscapeInput = document.createElement('input');
+    this.landscapeInput.type = 'file';
+    this.landscapeInput.accept = 'image/*';
+    this.landscapeInput.hidden = true;
+    this.landscapeInput.addEventListener('change', () => {
+      const [file] = this.landscapeInput.files;
+      if (file) {
+        this.emit('loadLandscapeImage', file);
+      }
+      this.landscapeInput.value = '';
+    });
+
+    const landscapeActions = document.createElement('div');
+    landscapeActions.className = 'editor-button-grid';
+    landscapeActions.append(
+      this.makeButton('Load Photo', () => this.landscapeInput.click()),
+      this.makeButton('Clear', () => this.emit('clearLandscapeImage')),
+      this.makeButton('Export', () => this.emit('exportLandscapeImage')),
+      this.landscapeInput,
+    );
+    landscape.append(landscapeActions);
+
     const options = document.createElement('section');
     options.className = 'editor-panel-section';
     options.innerHTML = '<h2>Edit options</h2>';
@@ -175,6 +206,7 @@ export class TrackEditorUI {
       this.makeCheckbox('snapOnDrag', 'Ground follow', false),
       this.makeCheckbox('showRails', 'Rails', true),
       this.makeCheckbox('showTerrain', 'Terrain', true),
+      this.makeCheckbox('showEditGuides', 'Edit guides', true),
     );
 
     const ride = document.createElement('section');
@@ -199,7 +231,7 @@ export class TrackEditorUI {
     });
     ride.append(metrics);
 
-    this.panel.append(selected, twists, options, ride);
+    this.panel.append(selected, twists, landscape, options, ride);
   }
 
   makeButton(label, handler) {
@@ -317,6 +349,11 @@ export class TrackEditorUI {
     this.setTwistInputValue('center', twist.center, 3);
     this.setTwistInputValue('length', twist.length, 3);
     this.setTwistInputValue('roll', twist.roll * 180 / Math.PI, 0);
+  }
+
+  updateLandscape(name, source = 'generated') {
+    const prefix = source === 'local' ? 'Local photo' : source === 'published' ? 'Published photo' : 'Generated terrain';
+    this.landscapeName.textContent = name ? `${prefix}: ${name}` : prefix;
   }
 
   setViewMode(mode) {

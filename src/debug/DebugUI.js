@@ -24,6 +24,8 @@ export class DebugUI {
     this.createToggle('trackVisible', 'Track');
     this.createToggle('music', 'Music');
     this.createToggle('paused', 'Pause');
+    this.createFileAction('Photo', (file) => this.options.onLoadLandscape?.(file));
+    this.createAction('Clear Photo', () => this.options.onClearLandscape?.());
     this.createAction('Editor', () => this.options.onOpenEditor?.());
     this.createAction('Fresh', () => this.options.onFreshReload?.());
     this.createVersion();
@@ -110,6 +112,31 @@ export class DebugUI {
     button.addEventListener('click', handler);
 
     row.append(button);
+    this.panel.append(row);
+  }
+
+  createFileAction(label, handler) {
+    const row = document.createElement('div');
+    row.className = 'debug-action';
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.hidden = true;
+    input.addEventListener('change', () => {
+      const [file] = input.files;
+      if (file) {
+        handler(file);
+      }
+      input.value = '';
+    });
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.addEventListener('click', () => input.click());
+
+    row.append(button, input);
     this.panel.append(row);
   }
 
