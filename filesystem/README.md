@@ -61,12 +61,23 @@ labels, and persistence.
 
 ## Deploy to GitHub Pages
 
-A workflow at `.github/workflows/pages-filesystem.yml` publishes this `filesystem/`
-folder. In the repo, open **Settings → Pages** and set **Source** to
-**GitHub Actions**. The workflow runs on pushes to the prototype branch (and can
-be run manually via *Actions → Run workflow*).
+This repo's Pages site is served from the `gh-pages` branch (the existing
+roller-coaster site lives at its root). Filespace is published **alongside** it,
+in a subfolder, so nothing is overwritten:
 
-> Note: a repo has one Pages site. Switching the source to GitHub Actions will
-> replace any existing "deploy from branch" Pages setup. If you'd rather keep
-> this experiment fully separate, copy the `filesystem/` folder into its own new
-> repository and enable Pages there.
+- **Live URL:** https://durrellbishop-icloud.github.io/yuri/filespace/
+
+To publish a new build, copy this folder's files into `gh-pages` under
+`filespace/` and push — Pages redeploys automatically:
+
+```bash
+git worktree add -B gh-pages /tmp/ghp origin/gh-pages
+rm -rf /tmp/ghp/filespace && mkdir -p /tmp/ghp/filespace
+cp -r index.html styles.css src /tmp/ghp/filespace/
+( cd /tmp/ghp && git add filespace && git commit -m "Deploy Filespace" && git push origin gh-pages )
+git worktree remove /tmp/ghp
+```
+
+> Note: a repo has only one Pages site. If you later want Filespace at the clean
+> root URL instead of a subfolder, it would replace the roller-coaster site — say
+> the word and that's a one-line change.
