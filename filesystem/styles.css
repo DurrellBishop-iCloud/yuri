@@ -1,0 +1,132 @@
+:root {
+  --bg: #0e1116;
+  --grid-line: rgba(255, 255, 255, 0.05);
+  --icon-face: linear-gradient(160deg, #6ea8ff, #3f6fe0);
+  --accent: #5b8def;
+  --hud-fg: rgba(255, 255, 255, 0.7);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The surface is the fixed viewport that captures pan / zoom gestures. */
+.surface {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-repeat: repeat;
+}
+
+.surface:active {
+  cursor: grabbing;
+}
+
+/* The world layer holds items in world coordinates and is moved/scaled as one. */
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* An item lives in world space, so it scales with the viewport. */
+.icon {
+  position: absolute;
+  border-radius: 18%;
+  background: var(--icon-face);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* The drag ghost is rendered in screen space at a fixed size. */
+.ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border-radius: 18%;
+  background: var(--icon-face);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.08s ease-out;
+  z-index: 20;
+}
+
+.ghost.is-visible {
+  opacity: 0.85;
+}
+
+.add-button {
+  position: fixed;
+  left: 50%;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 300;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+  z-index: 30;
+  transition: transform 0.08s ease-out, background 0.15s ease-out;
+}
+
+.add-button:hover {
+  background: #6c9bf5;
+}
+
+.add-button:active {
+  transform: translateX(-50%) scale(0.94);
+}
+
+.hud {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--hud-fg);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  z-index: 25;
+}
